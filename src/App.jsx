@@ -3,7 +3,8 @@ import Login from './components/Auth/Login';
 import Signup from './components/Auth/Signup';
 import Dashboard from './pages/Dashboard';
 import NotAuthorized from './pages/NotAuthorized';
-import ParentDashboard from './pages/ParentDashboard'; // ✅ added
+import ParentDashboard from './pages/ParentDashboard';
+import AdminDashboard from './pages/AdminDashboard'; // ✅ new import
 
 function App() {
   return (
@@ -14,7 +15,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/not-authorized" element={<NotAuthorized />} />
-        <Route path="/parent-dashboard" element={<ParentDashboard />} /> {/* ✅ added */}
+        <Route path="/parent-dashboard" element={<ParentDashboard />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} /> {/* ✅ added */}
       </Routes>
     </BrowserRouter>
   );
