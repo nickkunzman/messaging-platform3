@@ -14,6 +14,8 @@ export default function ParentDashboard() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      console.log('👤 Auth user:', user);
+
       if (!user) {
         navigate('/login');
         return;
@@ -25,11 +27,14 @@ export default function ParentDashboard() {
         .eq('id', user.id)
         .single();
 
+      console.log('📄 Role record:', data);
+
       if (error || !data || data.role !== 'parent') {
         navigate('/not-authorized');
       } else {
         setUser(user);
         setRole(data.role);
+        console.log('✅ Role from DB:', data.role);
       }
 
       setLoading(false);
@@ -39,36 +44,21 @@ export default function ParentDashboard() {
   }, []);
 
   if (loading) return <p>Loading...</p>;
-if (loading) return <p>Loading...</p>;
 
-console.log('ROLE STATE:', role); // 👈 Add this
-
-return (
-  <div>
-    <h1>Parent Dashboard</h1>
-    <p>Welcome! You are logged in as a <strong>{role}</strong>.</p>
-    <button
-      onClick={async () => {
-        await supabase.auth.signOut();
-        navigate('/login');
-      }}
-    >
-      Log Out
-    </button>
-  </div>
-);
+  console.log('ROLE STATE:', role);
 
   return (
-  <div>
-    <h1>Parent Dashboard</h1>
-    <p>Welcome! You are logged in as a <strong>{role}</strong>.</p>
-    <button
-      onClick={async () => {
-        await supabase.auth.signOut();
-        navigate('/login');
-      }}
-    >
-      Log Out
-    </button>
-  </div>
-);
+    <div>
+      <h1>Parent Dashboard</h1>
+      <p>Welcome! You are logged in as a <strong>{role}</strong>.</p>
+      <button
+        onClick={async () => {
+          await supabase.auth.signOut();
+          navigate('/login');
+        }}
+      >
+        Log Out
+      </button>
+    </div>
+  );
+}
