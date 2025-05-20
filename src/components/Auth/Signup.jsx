@@ -13,34 +13,55 @@ export default function Signup() {
     setError('');
 
     const emailLower = email.toLowerCase();
-    console.log('🔍 Checking email:', emailLower);
 
+    // 1. Check authorized_users
     const { data: authData, error: authError } = await supabase
-  .from('authorized_users')
-  .select('*')
-  .eq('email', emailLower)
-  .limit(1)
-  .maybeSingle();
-
-    console.log('✅ Supabase query result:', authData);
-    console.log('❌ Supabase error:', authError);
+      .from('authorized_users')
+      .select('*')
+      .eq('email', emailLower)
+      .limit(1)
+      .maybeSingle();
 
     if (authError || !authData) {
       setError('Email is not authorized to sign up.');
       return;
     }
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    // 2. Check if already signed up
+    const { data: existingUser } = await supabase.auth.admin?.listUsers?.(); // fallback-safe
+    const alreadyExists = existingUser?.users?.some((u) => u.email === emailLower);
+    if (alreadyExists) {
+      setError('This email is already registered. Please log in.');
+      return;
+    }
+
+    // 3. Create Supabase Auth user
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: emailLower,
       password
     });
 
     if (signUpError) {
       setError(signUpError.message);
-    } else {
-      alert('Signup successful! Please log in.');
-      navigate('/login');
+      return;
     }
+
+    // 4. Insert into Users table
+    const userId = signUpData.user?.id;
+    if (userId) {
+      const fullName = authData.parent_name || emailLower;
+
+      const { error: insertError } = await supabase
+        .from('Users')
+        .insert([{ id: userId, role: 'parent', full_name: fullName }]);
+
+      if (insertError) {
+        console.error('❌ Error inserting user metadata:', insertError.message);
+      }
+    }
+
+    alert('Signup successful! Please log in.');
+    navigate('/login');
   };
 
   return (
