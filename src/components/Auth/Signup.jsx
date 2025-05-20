@@ -12,10 +12,13 @@ export default function Signup() {
     e.preventDefault();
     setError('');
 
+    const emailLower = email.toLowerCase(); // ✅ Ensure lowercase comparison
+
+    // Check if this email is authorized
     const { data: authData, error: authError } = await supabase
       .from('authorized_users')
       .select('*')
-      .eq('email', email)
+      .eq('email', emailLower)
       .single();
 
     if (authError || !authData) {
@@ -23,21 +26,38 @@ export default function Signup() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
+    // Create user in Supabase Auth
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: emailLower,
       password
     });
 
-    if (error) setError(error.message);
-    else navigate('/login');
+    if (signUpError) {
+      setError(signUpError.message);
+    } else {
+      alert('Signup successful! Please log in.');
+      navigate('/login');
+    }
   };
 
   return (
     <form onSubmit={handleSignup}>
       <h2>Sign Up</h2>
-      <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-      {error && <p>{error}</p>}
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <button type="submit">Sign Up</button>
     </form>
   );
