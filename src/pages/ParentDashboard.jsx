@@ -1,17 +1,17 @@
-// src/pages/ParentDashboard.jsx
 import { supabase } from '../supabase/client';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function ParentDashboard() {
   const [user, setUser] = useState(null);
+  const [role, setRole] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserRole = async () => {
       const {
-        data: { user }
+        data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
@@ -29,6 +29,7 @@ export default function ParentDashboard() {
         navigate('/not-authorized');
       } else {
         setUser(user);
+        setRole(data.role);
       }
 
       setLoading(false);
@@ -41,9 +42,4 @@ export default function ParentDashboard() {
 
   return (
     <div>
-      <h1>Parent Dashboard</h1>
-      <p>Welcome, you are logged in as a <strong>parent</strong>.</p>
-      <button
-        onClick={async () => {
-          await supabase.auth.signOut();
-          navigate('/logi
+      <h1>Parent
