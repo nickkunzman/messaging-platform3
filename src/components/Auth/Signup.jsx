@@ -18,7 +18,7 @@ export default function Signup() {
     const { data: authData, error: authError } = await supabase
       .from('authorized_users')
       .select('*')
-      .ilike('email', `%${emailLower}%`) // ✅ FINAL FIX: wildcard matching
+      .ilike('email', emailLower) // ✅ final fix: case-insensitive match, no wildcards
       .single();
 
     console.log('✅ Supabase query result:', authData);
