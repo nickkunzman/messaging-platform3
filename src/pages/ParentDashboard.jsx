@@ -41,5 +41,16 @@ export default function ParentDashboard() {
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div>
-      <h1>Parent
+  <div>
+    <h1>Parent Dashboard</h1>
+    <p>Welcome! You are logged in as a <strong>{role}</strong>.</p>
+    <button
+      onClick={async () => {
+        await supabase.auth.signOut();
+        navigate('/login');
+      }}
+    >
+      Log Out
+    </button>
+  </div>
+);
