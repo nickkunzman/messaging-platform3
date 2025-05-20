@@ -12,13 +12,13 @@ export default function Signup() {
     e.preventDefault();
     setError('');
 
-    const emailLower = email.toLowerCase(); // ✅ Ensure lowercase comparison
+    const emailLower = email.toLowerCase();
 
-    // Check if this email is authorized
+    // ✅ Case-insensitive check for authorized email
     const { data: authData, error: authError } = await supabase
       .from('authorized_users')
       .select('*')
-      .eq('email', emailLower)
+      .ilike('email', emailLower) // 👈 case-insensitive match
       .single();
 
     if (authError || !authData) {
@@ -26,7 +26,7 @@ export default function Signup() {
       return;
     }
 
-    // Create user in Supabase Auth
+    // ✅ Create the user
     const { error: signUpError } = await supabase.auth.signUp({
       email: emailLower,
       password
