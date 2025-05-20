@@ -22,24 +22,23 @@ export default function Login() {
       return;
     }
 
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    const { data: userMeta, error: roleError } = await supabase
-      .from('Users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (roleError || !userMeta) {
-      navigate('/not-authorized');
+    const userId = signInData.user?.id;
+    if (!userId) {
+      setError('Something went wrong. Please try again.');
       return;
     }
 
-    if (userMeta.role === 'parent') {
+    const { data: userData, error: roleError } = await supabase
+      .from('Users')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (roleError || !userData?.role) {
+      navigate('/not-authorized');
+    } else if (userData.role === 'parent') {
       navigate('/parent-dashboard');
-    } else if (userMeta.role === 'admin') {
+    } else if (userData.role === 'admin') {
       navigate('/admin-dashboard');
     } else {
       navigate('/not-authorized');
@@ -65,10 +64,6 @@ export default function Login() {
       />
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <button type="submit">Login</button>
-
-      <p style={{ marginTop: '1rem' }}>
-        Don’t have an account? <a href="/signup">Sign up here</a>
-      </p>
     </form>
   );
 }
