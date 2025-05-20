@@ -18,8 +18,9 @@ export default function Signup() {
     const { data: authData, error: authError } = await supabase
       .from('authorized_users')
       .select('*')
-      .eq('email', emailLower) // ✅ guaranteed valid REST query
-      .single();
+      .eq('email', emailLower)
+      .limit(1)
+      .maybeSingle(); // ✅ safe for multiple matches
 
     console.log('✅ Supabase query result:', authData);
     console.log('❌ Supabase error:', authError);
