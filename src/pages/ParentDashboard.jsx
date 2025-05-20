@@ -39,6 +39,24 @@ export default function ParentDashboard() {
   }, []);
 
   if (loading) return <p>Loading...</p>;
+if (loading) return <p>Loading...</p>;
+
+console.log('ROLE STATE:', role); // 👈 Add this
+
+return (
+  <div>
+    <h1>Parent Dashboard</h1>
+    <p>Welcome! You are logged in as a <strong>{role}</strong>.</p>
+    <button
+      onClick={async () => {
+        await supabase.auth.signOut();
+        navigate('/login');
+      }}
+    >
+      Log Out
+    </button>
+  </div>
+);
 
   return (
   <div>
