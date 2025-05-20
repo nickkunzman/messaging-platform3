@@ -13,20 +13,22 @@ export default function Signup() {
     setError('');
 
     const emailLower = email.toLowerCase();
+    console.log('🔍 Checking email:', emailLower);
 
-    // ✅ Case-insensitive check for authorized email
     const { data: authData, error: authError } = await supabase
       .from('authorized_users')
       .select('*')
-      .ilike('email', emailLower) // 👈 case-insensitive match
+      .ilike('email', emailLower)
       .single();
+
+    console.log('✅ Supabase query result:', authData);
+    console.log('❌ Supabase error:', authError);
 
     if (authError || !authData) {
       setError('Email is not authorized to sign up.');
       return;
     }
 
-    // ✅ Create the user
     const { error: signUpError } = await supabase.auth.signUp({
       email: emailLower,
       password
