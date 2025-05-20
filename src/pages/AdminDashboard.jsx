@@ -11,43 +11,50 @@ export default function AdminDashboard() {
   const [gradeTeacherOptions, setGradeTeacherOptions] = useState([]);
   const [status, setStatus] = useState('');
 
-  // Fetch unique Grade - Teacher combos from authorized_users
+  const [users, setUsers] = useState([]);
+
+  // Fetch Grade-Teacher combos
   useEffect(() => {
     const fetchGradeTeacherOptions = async () => {
       const { data, error } = await supabase
         .from('authorized_users')
         .select('grade, teacher');
 
-      if (error) {
-        console.error('Error fetching grade/teacher:', error.message);
-        return;
-      }
+      if (error) return console.error('Grade/Teacher fetch error:', error.message);
 
       const uniqueOptions = Array.from(
-        new Set(
-          data.map((row) =>
-            row.teacher ? `${row.grade} - ${row.teacher}` : row.grade
-          )
-        )
+        new Set(data.map(row =>
+          row.teacher ? `${row.grade} - ${row.teacher}` : row.grade
+        ))
       );
-
       setGradeTeacherOptions(uniqueOptions.sort());
     };
 
     fetchGradeTeacherOptions();
+    fetchUsers(); // fetch user list on load
   }, []);
 
-  const generateTempPassword = () => {
-    return Math.random().toString(36).slice(-10) + '!';
+  // Fetch all users from Users table
+  const fetchUsers = async () => {
+    const { data, error } = await supabase.from('Users').select('*');
+    if (error) {
+      console.error('User fetch error:', error.message);
+    } else {
+      setUsers(data);
+    }
   };
 
+  // Generate temp password
+  const generateTempPassword = () =>
+    Math.random().toString(36).slice(-10) + '!';
+
+  // Create new user (existing logic)
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setStatus('Creating user...');
 
     const tempPassword = generateTempPassword();
 
-    // 1. Create Auth user
     const { data: createdUser, error: authError } =
       await supabase.auth.admin.createUser({
         email,
@@ -62,7 +69,6 @@ export default function AdminDashboard() {
 
     const userId = createdUser.user.id;
 
-    // 2. Insert into Users table
     const userRecord = {
       id: userId,
       role,
@@ -76,35 +82,52 @@ export default function AdminDashboard() {
       if (t) userRecord.teacher = t;
     }
 
-    if (role === 'teacher') {
+    if (role === 'teacher' || role === 'specialized') {
       userRecord.grade = grade;
-    }
-
-    if (role === 'specialized') {
-      userRecord.grade = grade; // comma-separated grades
     }
 
     const { error: metaError } = await supabase.from('Users').insert([userRecord]);
 
     if (metaError) {
-      setStatus('✅ User created in Auth but failed to insert role: ' + metaError.message);
+      setStatus('✅ Created in Auth, but failed to save metadata: ' + metaError.message);
       return;
     }
 
-    // 3. Display temp password (later: send email via email client)
-    setStatus(
-      `✅ User created successfully!\nTemp Password: ${tempPassword}`
-    );
-
-    // Reset form
+    setStatus(`✅ User created! Temp password: ${tempPassword}`);
     setEmail('');
     setFullName('');
     setStudentName('');
     setGrade('');
     setSelectedGradeTeacher('');
     setRole('');
+    fetchUsers();
   };
 
+  // Handle updating a user
+  const handleUpdateUser = async (index) => {
+    const updatedUser = users[index];
+    const { id, ...fields } = updatedUser;
+
+    const { error } = await supabase
+      .from('Users')
+      .update(fields)
+      .eq('id', id);
+
+    if (error) {
+      alert(`❌ Failed to update: ${error.message}`);
+    } else {
+      alert('✅ User updated successfully.');
+      fetchUsers();
+    }
+  };
+
+  const handleInputChange = (index, field, value) => {
+    const updated = [...users];
+    updated[index][field] = value;
+    setUsers(updated);
+  };
+
+  // Dynamic fields for new user creation
   const renderRoleFields = () => {
     if (role === 'parent') {
       return (
@@ -132,23 +155,11 @@ export default function AdminDashboard() {
       );
     }
 
-    if (role === 'teacher') {
+    if (role === 'teacher' || role === 'specialized') {
       return (
         <input
           type="text"
           placeholder="Grade"
-          value={grade}
-          onChange={(e) => setGrade(e.target.value)}
-          required
-        />
-      );
-    }
-
-    if (role === 'specialized') {
-      return (
-        <input
-          type="text"
-          placeholder="Grades (e.g. 6th,7th,8th)"
           value={grade}
           onChange={(e) => setGrade(e.target.value)}
           required
@@ -162,7 +173,9 @@ export default function AdminDashboard() {
   return (
     <div>
       <h2>Admin Dashboard</h2>
-      <form onSubmit={handleCreateUser}>
+
+      {/* CREATE USER FORM */}
+      <form onSubmit={handleCreateUser} style={{ marginBottom: '2rem' }}>
         <input
           type="email"
           placeholder="User Email"
@@ -177,7 +190,6 @@ export default function AdminDashboard() {
           onChange={(e) => setFullName(e.target.value)}
           required
         />
-
         <select
           value={role}
           onChange={(e) => {
@@ -194,16 +206,81 @@ export default function AdminDashboard() {
           <option value="teacher">Teacher</option>
           <option value="specialized">Specialized Faculty</option>
         </select>
-
         {renderRoleFields()}
-
         <button type="submit">Create User</button>
       </form>
 
       {status && (
-        <pre style={{ marginTop: '1rem', whiteSpace: 'pre-wrap' }}>{status}</pre>
+        <pre style={{ whiteSpace: 'pre-wrap', color: 'green' }}>{status}</pre>
       )}
+
+      {/* SUMMARY TABLE */}
+      <h3>All Users</h3>
+      <table border="1" cellPadding="6" style={{ width: '100%', marginTop: '1rem' }}>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Email</th>
+            <th>Full Name</th>
+            <th>Role</th>
+            <th>Grade</th>
+            <th>Teacher</th>
+            <th>Student Name</th>
+            <th>Save</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((u, i) => (
+            <tr key={u.id}>
+              <td style={{ fontSize: '0.75rem' }}>{u.id}</td>
+              <td>
+                <input
+                  value={u.email || ''}
+                  onChange={(e) => handleInputChange(i, 'email', e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  value={u.full_name || ''}
+                  onChange={(e) => handleInputChange(i, 'full_name', e.target.value)}
+                />
+              </td>
+              <td>
+                <select
+                  value={u.role}
+                  onChange={(e) => handleInputChange(i, 'role', e.target.value)}
+                >
+                  <option value="admin">Admin</option>
+                  <option value="parent">Parent</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="specialized">Specialized</option>
+                </select>
+              </td>
+              <td>
+                <input
+                  value={u.grade || ''}
+                  onChange={(e) => handleInputChange(i, 'grade', e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  value={u.teacher || ''}
+                  onChange={(e) => handleInputChange(i, 'teacher', e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  value={u.student_name || ''}
+                  onChange={(e) => handleInputChange(i, 'student_name', e.target.value)}
+                />
+              </td>
+              <td>
+                <button onClick={() => handleUpdateUser(i)}>Save</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
-
