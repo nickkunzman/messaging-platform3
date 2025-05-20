@@ -16,11 +16,11 @@ export default function Signup() {
     console.log('🔍 Checking email:', emailLower);
 
     const { data: authData, error: authError } = await supabase
-      .from('authorized_users')
-      .select('*')
-      .eq('email', emailLower)
-      .limit(1)
-      .maybeSingle(); // ✅ safe for multiple matches
+  .from('authorized_users')
+  .select('*')
+  .eq('email', emailLower)
+  .limit(1)
+  .maybeSingle();
 
     console.log('✅ Supabase query result:', authData);
     console.log('❌ Supabase error:', authError);
