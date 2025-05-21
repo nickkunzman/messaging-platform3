@@ -11,10 +11,8 @@ export default function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
-
     const emailLower = email.toLowerCase();
 
-    // 1. Check authorized_users
     const { data: authData, error: authError } = await supabase
       .from('authorized_users')
       .select('*')
@@ -27,41 +25,29 @@ export default function Signup() {
       return;
     }
 
-    // 2. Check if already signed up
-    const { data: existingUser } = await supabase.auth.admin?.listUsers?.(); // fallback-safe
-    const alreadyExists = existingUser?.users?.some((u) => u.email === emailLower);
-    if (alreadyExists) {
-      setError('This email is already registered. Please log in.');
-      return;
-    }
-
-    // 3. Create Supabase Auth user
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: emailLower,
-      password
+      password,
     });
 
     if (signUpError) {
       setError(signUpError.message);
-      return;
+    } else {
+      const userId = signUpData?.user?.id;
+
+      // Insert into Users table
+      await supabase.from('Users').insert([
+        {
+          id: userId,
+          role: 'parent',
+          full_name: authData.parent_name,
+          email: emailLower,
+        },
+      ]);
+
+      alert('Signup successful! Please log in.');
+      navigate('/login');
     }
-
-    // 4. Insert into Users table
-    const userId = signUpData.user?.id;
-    if (userId) {
-      const fullName = authData.parent_name || emailLower;
-
-      const { error: insertError } = await supabase
-        .from('Users')
-        .insert([{ id: userId, role: 'parent', full_name: fullName }]);
-
-      if (insertError) {
-        console.error('❌ Error inserting user metadata:', insertError.message);
-      }
-    }
-
-    alert('Signup successful! Please log in.');
-    navigate('/login');
   };
 
   return (
