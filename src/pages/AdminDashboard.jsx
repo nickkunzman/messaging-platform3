@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('');
   const [studentName, setStudentName] = useState('');
-  const [grade, setGrade] = useState('');
-  const [selectedGradeTeacher, setSelectedGradeTeacher] = useState('');
+  const [grades, setGrades] = useState([]);
+  const [teacher, setTeacher] = useState('');
   const [gradeTeacherOptions, setGradeTeacherOptions] = useState([]);
   const [status, setStatus] = useState('');
-  const [viewMode, setViewMode] = useState('users'); // 'users' or 'authorized'
+  const [viewMode, setViewMode] = useState('users');
 
   const [users, setUsers] = useState([]);
   const [authorized, setAuthorized] = useState([]);
   const [signedUpEmails, setSignedUpEmails] = useState([]);
 
-  // Fetch both user data and authorized users
   useEffect(() => {
     fetchGradeTeacherOptions();
     fetchUsers();
@@ -53,9 +55,13 @@ export default function AdminDashboard() {
     setAuthorized(data);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
   const generateTempPassword = () =>
     Math.random().toString(36).slice(-10) + '!';
-
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setStatus('Creating user...');
@@ -80,18 +86,23 @@ export default function AdminDashboard() {
       id: userId,
       role,
       full_name: fullName,
-      email,
+      email
     };
 
     if (role === 'parent') {
       userRecord.student_name = studentName;
-      const [g, t] = selectedGradeTeacher.split(' - ');
+      const [g, t] = grades[0].split(' - ');
       userRecord.grade = g;
       if (t) userRecord.teacher = t;
     }
 
-    if (role === 'teacher' || role === 'specialized') {
-      userRecord.grade = grade;
+    if (role === 'teacher') {
+      const [g] = grades;
+      userRecord.grade = g;
+    }
+
+    if (role === 'specialized') {
+      userRecord.grade = grades.join(',');
     }
 
     const { error: metaError } = await supabase.from('Users').insert([userRecord]);
@@ -105,29 +116,10 @@ export default function AdminDashboard() {
     setEmail('');
     setFullName('');
     setStudentName('');
-    setGrade('');
-    setSelectedGradeTeacher('');
+    setGrades([]);
+    setTeacher('');
     setRole('');
     fetchUsers();
-  };
-
-  const handleUpdateUser = async (index) => {
-    const updatedUser = users[index];
-    const { id, ...fields } = updatedUser;
-
-    const { error } = await supabase.from('Users').update(fields).eq('id', id);
-    if (error) {
-      alert(`❌ Failed to update: ${error.message}`);
-    } else {
-      alert('✅ User updated successfully.');
-      fetchUsers();
-    }
-  };
-
-  const handleInputChange = (index, field, value) => {
-    const updated = [...users];
-    updated[index][field] = value;
-    setUsers(updated);
   };
 
   const renderRoleFields = () => {
@@ -142,8 +134,8 @@ export default function AdminDashboard() {
             required
           />
           <select
-            value={selectedGradeTeacher}
-            onChange={(e) => setSelectedGradeTeacher(e.target.value)}
+            value={grades[0] || ''}
+            onChange={(e) => setGrades([e.target.value])}
             required
           >
             <option value="">Select Grade - Teacher</option>
@@ -157,24 +149,64 @@ export default function AdminDashboard() {
       );
     }
 
-    if (role === 'teacher' || role === 'specialized') {
+    if (role === 'teacher') {
       return (
-        <input
-          type="text"
-          placeholder="Grade"
-          value={grade}
-          onChange={(e) => setGrade(e.target.value)}
+        <select
+          value={grades[0] || ''}
+          onChange={(e) => setGrades([e.target.value])}
           required
-        />
+        >
+          <option value="">Select Grade</option>
+          {gradeTeacherOptions.map((opt, i) => {
+            const [gradeOnly] = opt.split(' - ');
+            return (
+              <option key={i} value={gradeOnly}>
+                {gradeOnly}
+              </option>
+            );
+          })}
+        </select>
+      );
+    }
+
+    if (role === 'specialized') {
+      return (
+        <fieldset>
+          <legend>Select Grades (Multiple Allowed)</legend>
+          {gradeTeacherOptions.map((opt, i) => {
+            const [gradeOnly] = opt.split(' - ');
+            return (
+              <label key={i} style={{ display: 'block' }}>
+                <input
+                  type="checkbox"
+                  value={gradeOnly}
+                  checked={grades.includes(gradeOnly)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setGrades((prev) =>
+                      checked
+                        ? [...prev, gradeOnly]
+                        : prev.filter((g) => g !== gradeOnly)
+                    );
+                  }}
+                />
+                {gradeOnly}
+              </label>
+            );
+          })}
+        </fieldset>
       );
     }
 
     return null;
   };
-
   return (
     <div>
-      <h2>Admin Dashboard</h2>
+      {/* Header with Logout */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Admin Dashboard</h2>
+        <button onClick={handleLogout}>Log Out</button>
+      </div>
 
       {/* VIEW TOGGLE */}
       <div style={{ marginBottom: '1rem' }}>
@@ -210,8 +242,7 @@ export default function AdminDashboard() {
               onChange={(e) => {
                 setRole(e.target.value);
                 setStudentName('');
-                setGrade('');
-                setSelectedGradeTeacher('');
+                setGrades([]);
               }}
               required
             >
@@ -221,6 +252,7 @@ export default function AdminDashboard() {
               <option value="teacher">Teacher</option>
               <option value="specialized">Specialized Faculty</option>
             </select>
+
             {renderRoleFields()}
             <button type="submit">Create User</button>
           </form>
@@ -251,19 +283,31 @@ export default function AdminDashboard() {
                   <td>
                     <input
                       value={u.email || ''}
-                      onChange={(e) => handleInputChange(i, 'email', e.target.value)}
+                      onChange={(e) => {
+                        const updated = [...users];
+                        updated[i].email = e.target.value;
+                        setUsers(updated);
+                      }}
                     />
                   </td>
                   <td>
                     <input
                       value={u.full_name || ''}
-                      onChange={(e) => handleInputChange(i, 'full_name', e.target.value)}
+                      onChange={(e) => {
+                        const updated = [...users];
+                        updated[i].full_name = e.target.value;
+                        setUsers(updated);
+                      }}
                     />
                   </td>
                   <td>
                     <select
                       value={u.role}
-                      onChange={(e) => handleInputChange(i, 'role', e.target.value)}
+                      onChange={(e) => {
+                        const updated = [...users];
+                        updated[i].role = e.target.value;
+                        setUsers(updated);
+                      }}
                     >
                       <option value="admin">Admin</option>
                       <option value="parent">Parent</option>
@@ -274,21 +318,31 @@ export default function AdminDashboard() {
                   <td>
                     <input
                       value={u.grade || ''}
-                      onChange={(e) => handleInputChange(i, 'grade', e.target.value)}
+                      onChange={(e) => {
+                        const updated = [...users];
+                        updated[i].grade = e.target.value;
+                        setUsers(updated);
+                      }}
                     />
                   </td>
                   <td>
                     <input
                       value={u.teacher || ''}
-                      onChange={(e) => handleInputChange(i, 'teacher', e.target.value)}
+                      onChange={(e) => {
+                        const updated = [...users];
+                        updated[i].teacher = e.target.value;
+                        setUsers(updated);
+                      }}
                     />
                   </td>
                   <td>
                     <input
                       value={u.student_name || ''}
-                      onChange={(e) =>
-                        handleInputChange(i, 'student_name', e.target.value)
-                      }
+                      onChange={(e) => {
+                        const updated = [...users];
+                        updated[i].student_name = e.target.value;
+                        setUsers(updated);
+                      }}
                     />
                   </td>
                   <td>
@@ -301,7 +355,7 @@ export default function AdminDashboard() {
         </>
       )}
 
-      {/* AUTHORIZED USERS VIEW */}
+      {/* AUTHORIZED PARENTS TABLE */}
       {viewMode === 'authorized' && (
         <>
           <h3>Authorized Parents</h3>
