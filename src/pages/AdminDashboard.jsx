@@ -8,9 +8,9 @@ export default function AdminDashboard() {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('');
-  const [studentName, setStudentName] = useState('');
   const [grades, setGrades] = useState([]);
   const [teacher, setTeacher] = useState('');
+  const [students, setStudents] = useState([{ name: '', gradeTeacher: '' }]);
   const [gradeTeacherOptions, setGradeTeacherOptions] = useState([]);
   const [status, setStatus] = useState('');
   const [viewMode, setViewMode] = useState('users');
@@ -90,8 +90,9 @@ export default function AdminDashboard() {
     };
 
     if (role === 'parent') {
-      userRecord.student_name = studentName;
-      const [g, t] = grades[0].split(' - ');
+      const [first] = students;
+      userRecord.student_name = first.name;
+      const [g, t] = first.gradeTeacher.split(' - ');
       userRecord.grade = g;
       if (t) userRecord.teacher = t;
     }
@@ -115,7 +116,7 @@ export default function AdminDashboard() {
     setStatus(`✅ User created! Temp password: ${tempPassword}`);
     setEmail('');
     setFullName('');
-    setStudentName('');
+    setStudents([{ name: '', gradeTeacher: '' }]);
     setGrades([]);
     setTeacher('');
     setRole('');
@@ -126,25 +127,56 @@ export default function AdminDashboard() {
     if (role === 'parent') {
       return (
         <>
-          <input
-            type="text"
-            placeholder="Student Name"
-            value={studentName}
-            onChange={(e) => setStudentName(e.target.value)}
-            required
-          />
-          <select
-            value={grades[0] || ''}
-            onChange={(e) => setGrades([e.target.value])}
-            required
+          <h4>Student(s):</h4>
+          {students.map((student, index) => (
+            <div key={index} style={{ marginBottom: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Student Name"
+                value={student.name}
+                onChange={(e) => {
+                  const updated = [...students];
+                  updated[index].name = e.target.value;
+                  setStudents(updated);
+                }}
+                required
+              />
+              <select
+                value={student.gradeTeacher}
+                onChange={(e) => {
+                  const updated = [...students];
+                  updated[index].gradeTeacher = e.target.value;
+                  setStudents(updated);
+                }}
+                required
+              >
+                <option value="">Select Grade - Teacher</option>
+                {gradeTeacherOptions.map((opt, i) => (
+                  <option key={i} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              {students.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStudents(students.filter((_, i) => i !== index))
+                  }
+                >
+                  🗑 Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              setStudents([...students, { name: '', gradeTeacher: '' }])
+            }
           >
-            <option value="">Select Grade - Teacher</option>
-            {gradeTeacherOptions.map((opt, i) => (
-              <option key={i} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
+            ➕ Add Another Student
+          </button>
         </>
       );
     }
@@ -241,7 +273,7 @@ export default function AdminDashboard() {
               value={role}
               onChange={(e) => {
                 setRole(e.target.value);
-                setStudentName('');
+                setStudents([{ name: '', gradeTeacher: '' }]);
                 setGrades([]);
               }}
               required
